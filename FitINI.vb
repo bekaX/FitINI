@@ -2,9 +2,9 @@
 Imports System.Text
 
 ' FitINI Library
-' A simple library for accessing Ini file and Ini style file
+' A simple library for accessing ini file and ini style file
 ' 
-' 1.2.1
+' 1.2.2
 
 Namespace FitINI
 
@@ -16,6 +16,9 @@ Namespace FitINI
         Protected _Sections As New Dictionary(Of String, Section)
         Protected _Default As New Section()
         Protected _CommentPrefix As String
+
+        '默认的注释前缀
+        Public Const DefaultCommentPrefix = ";"
 
         ''' <summary>
         ''' 获取或设置此 INI 中的某一个区块 (不存在时返回 Nothing)
@@ -89,7 +92,7 @@ Namespace FitINI
         ''' 构造一个 INI 对象
         ''' </summary>
         Public Sub New()
-            _CommentPrefix = LoadOption.DefaultCommentPrefix
+            _CommentPrefix = DefaultCommentPrefix
         End Sub
 
         ''' <summary>
@@ -144,7 +147,7 @@ Namespace FitINI
         ''' <param name="oldName">区块的名字</param>
         ''' <param name="newName">区块的新名字</param>
         ''' <returns>成功修改返回 True, 否则返回 False</returns>
-        Public Function Rename(oldName As String, newName As String)
+        Public Function Rename(oldName As String, newName As String) As Boolean
             If oldName Is Nothing Then oldName = ""
             If newName Is Nothing Then newName = ""
             If oldName <> newName AndAlso _Sections.ContainsKey(oldName) Then
@@ -512,9 +515,6 @@ Namespace FitINI
     ''' </summary>
     Public Class LoadOption
 
-        '默认的注释前缀
-        Public Const DefaultCommentPrefix = ";"
-
         ''' <summary>
         ''' 当遇到非标准类型的行文本时的选项
         ''' </summary>
@@ -555,7 +555,7 @@ Namespace FitINI
         ''' 要解析的文件中注释的前缀
         ''' </summary>
         ''' <returns></returns>
-        Public Property DataCommentPrefix() As String = DefaultCommentPrefix
+        Public Property DataCommentPrefix() As String = INI.DefaultCommentPrefix
 
     End Class
 
@@ -625,7 +625,7 @@ Namespace FitINI
         End Property
 
         ''' <summary>
-        ''' 获取此区块内的条目总数(包括非键值对)
+        ''' 获取此区块内的条目(键值对)总数
         ''' </summary>
         ''' <returns></returns>
         Public ReadOnly Property Count() As Integer
@@ -670,7 +670,7 @@ Namespace FitINI
         End Function
 
         ''' <summary>
-        ''' 移除某一个键值对条目(键值对)
+        ''' 移除某一个条目(键值对)
         ''' </summary>
         ''' <param name="key">键的名字</param>
         ''' <returns>成功移除返回 True, 否则返回 False</returns>
@@ -689,6 +689,33 @@ Namespace FitINI
         End Function
 
         ''' <summary>
+        ''' 修改键值中对的键名
+        ''' </summary>
+        ''' <param name="oldName">键名</param>
+        ''' <param name="newName">键的新名字</param>
+        ''' <returns>成功修改返回 True, 否则返回 False</returns>
+        Public Function Rename(oldName As String, newName As String) As Boolean
+            If oldName Is Nothing Then oldName = ""
+            If newName Is Nothing Then newName = ""
+            If oldName <> newName AndAlso _Entries.ContainsKey(oldName) Then
+                For i = 0 To _ItemList.Count - 1
+                    Dim e As Record = _ItemList(i)
+                    If e.Content = oldName AndAlso e.IsKeyValue Then
+                        _ItemList(i) = New Record With {
+                            .Content = newName,
+                            .Type = e.Type
+                        }
+                    End If
+                Next
+                Dim value = _Entries.Item(oldName)
+                _Entries.Remove(oldName)
+                _Entries.Add(newName, value)
+                Return True
+            End If
+            Return False
+        End Function
+
+        ''' <summary>
         ''' 创建一个当前 Section 对象的副本(深拷贝)
         ''' </summary>
         ''' <returns></returns>
@@ -701,7 +728,7 @@ Namespace FitINI
         End Function
 
         ''' <summary>
-        ''' 清空当前 Section 对象的所有条目内容
+        ''' 清空当前 Section 对象的所有内容
         ''' </summary>
         Public Sub Clear()
             _Entries.Clear()
@@ -792,6 +819,7 @@ Namespace FitINI
         ''' <summary>
         ''' 按行生成文本的列表
         ''' </summary>
+        ''' <param name="commentPrefix">表示行注释的前缀字符</param>
         ''' <returns>返回包含每行内容的列表</returns>
         Public Function ToList(Optional commentPrefix As String = ";") As List(Of String)
             Dim list As New List(Of String)
@@ -810,6 +838,7 @@ Namespace FitINI
         ''' <summary>
         ''' 根据内容生成字符串
         ''' </summary>
+        ''' <param name="commentPrefix">表示行注释的前缀字符</param>
         ''' <returns>返回文本内容的字符串</returns>
         Public Function ToContentString(Optional commentPrefix As String = ";") As String
             If commentPrefix Is Nothing Then commentPrefix = ""
